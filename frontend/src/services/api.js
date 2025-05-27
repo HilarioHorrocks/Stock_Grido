@@ -1,41 +1,98 @@
-import { supabase } from './supabase.js'
+import { supabase } from './supabase.js';
 
-// API de Helados con Supabase
+// ==========================
+// AUTH API
+// ==========================
+export const authAPI = {
+  login: async (credentials) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.username,
+      password: credentials.password
+    });
+
+    if (error) {
+      console.error("Error al iniciar sesión:", error.message);
+      throw new Error("Credenciales incorrectas");
+    }
+
+    const { session, user } = data;
+    localStorage.setItem('access_token', session.access_token);
+
+    return {
+      data: {
+        message: 'Login exitoso',
+        token: session.access_token,
+        user
+      }
+    };
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('access_token');
+  },
+
+  verify: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Sesión no válida");
+    return {
+      data: {
+        valid: true,
+        user
+      }
+    };
+  }
+};
+
+// ==========================
+// HELADOS API
+// ==========================
 export const heladosAPI = {
   getAll: async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('helados')
       .select('*')
-      .order('created_at', { ascending: false })
-    
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.error('Error al obtener helados:', error)
-      throw error
+      console.error('Error al obtener helados:', error);
+      throw error;
     }
-    
-    return { data: { data, success: true, total: data.length } }
+
+    return { data: { data, success: true, total: data.length } };
   },
 
   create: async (heladoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('helados')
       .insert([{
         nombre: heladoData.nombre.trim(),
         stock: Number(heladoData.stock),
         precio: Number(heladoData.precio),
-        categoria: heladoData.categoria.trim()
+        categoria: heladoData.categoria.trim(),
+        user_id: userId
       }])
-      .select()
-    
+      .select();
+
     if (error) {
-      console.error('Error al crear helado:', error)
-      throw error
+      console.error('Error al crear helado:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   update: async (id, heladoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('helados')
       .update({
@@ -46,82 +103,99 @@ export const heladosAPI = {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-    
+      .eq('user_id', userId)
+      .select();
+
     if (error) {
-      console.error('Error al actualizar helado:', error)
-      throw error
+      console.error('Error al actualizar helado:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   delete: async (id) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('helados')
       .delete()
       .eq('id', id)
-      .select()
-    
+      .eq('user_id', userId)
+      .select();
+
     if (error) {
-      console.error('Error al eliminar helado:', error)
-      throw error
+      console.error('Error al eliminar helado:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   updateStock: async (id, stock) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('helados')
-      .update({ 
+      .update({
         stock: Number(stock),
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-    
-    if (error) {
-      console.error('Error al actualizar stock:', error)
-      throw error
-    }
-    
-    return { data: { data: data[0], success: true } }
-  }
-}
+      .eq('user_id', userId)
+      .select();
 
-// API de Insumos con Supabase
+    if (error) {
+      console.error('Error al actualizar stock:', error);
+      throw error;
+    }
+
+    return { data: { data: data[0], success: true } };
+  }
+};
+
+// ==========================
+// INSUMOS API
+// ==========================
 export const insumosAPI = {
   getAll: async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('insumos')
       .select('*')
-      .order('created_at', { ascending: false })
-    
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.error('Error al obtener insumos:', error)
-      throw error
+      console.error('Error al obtener insumos:', error);
+      throw error;
     }
-    
-    // Agregar información de estado de stock
+
     const insumosConEstado = data.map(insumo => ({
       ...insumo,
       stockBajo: insumo.stock <= insumo.stock_minimo,
       valorTotal: insumo.stock * (insumo.precio || 0),
-      stockMinimo: insumo.stock_minimo // Mapear nombre de campo
-    }))
-    
-    return { 
-      data: { 
-        data: insumosConEstado, 
-        success: true, 
+      stockMinimo: insumo.stock_minimo
+    }));
+
+    return {
+      data: {
+        data: insumosConEstado,
+        success: true,
         total: data.length,
         stockBajo: insumosConEstado.filter(i => i.stockBajo).length
-      } 
-    }
+      }
+    };
   },
 
   create: async (insumoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('insumos')
       .insert([{
@@ -130,19 +204,23 @@ export const insumosAPI = {
         unidad: insumoData.unidad.trim(),
         proveedor: insumoData.proveedor.trim(),
         stock_minimo: Number(insumoData.stockMinimo),
-        precio: Number(insumoData.precio || 0)
+        precio: Number(insumoData.precio || 0),
+        user_id: userId
       }])
-      .select()
-    
+      .select();
+
     if (error) {
-      console.error('Error al crear insumo:', error)
-      throw error
+      console.error('Error al crear insumo:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   update: async (id, insumoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('insumos')
       .update({
@@ -155,105 +233,59 @@ export const insumosAPI = {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-    
+      .eq('user_id', userId)
+      .select();
+
     if (error) {
-      console.error('Error al actualizar insumo:', error)
-      throw error
+      console.error('Error al actualizar insumo:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   delete: async (id) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('insumos')
       .delete()
       .eq('id', id)
-      .select()
-    
+      .eq('user_id', userId)
+      .select();
+
     if (error) {
-      console.error('Error al eliminar insumo:', error)
-      throw error
+      console.error('Error al eliminar insumo:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   },
 
   updateStock: async (id, stock) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
     const { data, error } = await supabase
       .from('insumos')
-      .update({ 
+      .update({
         stock: Number(stock),
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-    
+      .eq('user_id', userId)
+      .select();
+
     if (error) {
-      console.error('Error al actualizar stock:', error)
-      throw error
+      console.error('Error al actualizar stock:', error);
+      throw error;
     }
-    
-    return { data: { data: data[0], success: true } }
+
+    return { data: { data: data[0], success: true } };
   }
-}
+};
 
-// API de Autenticación (simple)
-export const authAPI = {
-  login: async (credentials) => {
-    // Simulación de delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // Credenciales válidas
-    const validCredentials = [
-      { username: 'admin', password: '123' },
-      { username: 'heladeria', password: '12345' }
-    ]
-    
-    const isValid = validCredentials.some(
-      cred => cred.username === credentials.username && cred.password === credentials.password
-    )
-    
-    if (isValid) {
-      const user = {
-        id: 1,
-        username: credentials.username,
-        role: 'admin'
-      }
-      
-      const token = `token-${Date.now()}-${credentials.username}`
-      
-      return {
-        data: {
-          message: 'Login exitoso',
-          token,
-          user
-        }
-      }
-    } else {
-      throw { response: { data: { message: 'Credenciales incorrectas' } } }
-    }
-  },
+export default { authAPI, heladosAPI, insumosAPI };
 
-  verify: async () => {
-    const token = localStorage.getItem('token')
-    
-    if (token && token.startsWith('token-')) {
-      return {
-        data: {
-          valid: true,
-          user: {
-            id: 1,
-            username: 'admin',
-            role: 'admin'
-          }
-        }
-      }
-    } else {
-      throw new Error('Token inválido')
-    }
-  }
-}
 
-export default { heladosAPI, insumosAPI, authAPI }
