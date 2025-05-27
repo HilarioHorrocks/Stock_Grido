@@ -282,5 +282,117 @@ export const insumosAPI = {
     return { data: { data: data[0], success: true } };
   }
 };
+// ==========================
+// IMPULSIVOS API
+// ==========================
+export const impulsivosAPI = {
+  getAll: async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
 
-export default { authAPI, heladosAPI, insumosAPI };
+    const { data, error } = await supabase
+      .from('impulsivos')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error al obtener impulsivos:', error);
+      throw error;
+    }
+
+    return { data: { data, success: true, total: data.length } };
+  },
+
+  create: async (impulsivoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    const { data, error } = await supabase
+      .from('impulsivos')
+      .insert([{
+        nombre: impulsivoData.nombre.trim(),
+        stock: Number(impulsivoData.stock),
+        precio: Number(impulsivoData.precio),
+        categoria: impulsivoData.categoria.trim(),
+        user_id: userId
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error al crear impulsivo:', error);
+      throw error;
+    }
+
+    return { data: { data: data[0], success: true } };
+  },
+
+  update: async (id, impulsivoData) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    const { data, error } = await supabase
+      .from('impulsivos')
+      .update({
+        nombre: impulsivoData.nombre.trim(),
+        stock: Number(impulsivoData.stock),
+        precio: Number(impulsivoData.precio),
+        categoria: impulsivoData.categoria.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error al actualizar impulsivo:', error);
+      throw error;
+    }
+
+    return { data: { data: data[0], success: true } };
+  },
+
+  delete: async (id) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    const { data, error } = await supabase
+      .from('impulsivos')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error al eliminar impulsivo:', error);
+      throw error;
+    }
+
+    return { data: { data: data[0], success: true } };
+  },
+
+  updateStock: async (id, stock) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    const { data, error } = await supabase
+      .from('impulsivos')
+      .update({
+        stock: Number(stock),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error al actualizar stock:', error);
+      throw error;
+    }
+
+    return { data: { data: data[0], success: true } };
+  }
+};
+
+export default { authAPI, heladosAPI, insumosAPI, impulsivosAPI };
+
