@@ -64,8 +64,15 @@ export const heladosAPI = {
   },
 
   create: async (heladoData) => {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !userData?.user) {
+      console.error("⚠️ Usuario no autenticado o sesión expirada:", userError?.message);
+      throw new Error("No hay sesión activa");
+    }
+
+    const userId = userData.user.id;
+    console.log("🧪 user_id insertado:", userId);
 
     const { data, error } = await supabase
       .from('helados')
@@ -79,7 +86,7 @@ export const heladosAPI = {
       .select();
 
     if (error) {
-      console.error('Error al crear helado:', error);
+      console.error('❌ Error al crear helado:', error);
       throw error;
     }
 
@@ -244,7 +251,6 @@ export const insumosAPI = {
   delete: async (id) => {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
-    console.log("user_id insertado:", userId);
 
     const { data, error } = await supabase
       .from('insumos')
