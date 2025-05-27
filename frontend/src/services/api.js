@@ -6,7 +6,7 @@ import { supabase } from './supabase.js';
 export const authAPI = {
   login: async (credentials) => {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: credentials.username,
+      email: credentials.email,
       password: credentials.password
     });
 
@@ -15,14 +15,11 @@ export const authAPI = {
       throw new Error("Credenciales incorrectas");
     }
 
-    const { session, user } = data;
-    localStorage.setItem('access_token', session.access_token);
-
     return {
       data: {
         message: 'Login exitoso',
-        token: session.access_token,
-        user
+        token: data.session.access_token,
+        user: data.user
       }
     };
   },
@@ -287,5 +284,3 @@ export const insumosAPI = {
 };
 
 export default { authAPI, heladosAPI, insumosAPI };
-
-
