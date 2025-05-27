@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { IceCream, Package, LogOut, AlertTriangle, TrendingUp } from "lucide-react"
+import { IceCream, Package, LogOut, AlertTriangle, TrendingUp, Candy } from "lucide-react"
 import HeladeriaManager from "./HeladeriaManager"
 import InsumosManager from "./InsumosManager"
+import ImpulsivosManager from "./ImpulsivosManager"
 import { heladosAPI, insumosAPI } from "../services/api"
 
 const Dashboard = ({ user, onLogout }) => {
@@ -182,6 +183,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <IceCream className="w-5 h-5 inline mr-2" />
                 Gestión de Helados
               </button>
+
               <button
                 onClick={() => setActiveTab("insumos")}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -193,14 +195,28 @@ const Dashboard = ({ user, onLogout }) => {
                 <Package className="w-5 h-5 inline mr-2" />
                 Gestión de Insumos
               </button>
+
+              <button
+                onClick={() => setActiveTab("impulsivos")}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "impulsivos"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Candy className="w-5 h-5 inline mr-2" />
+                Gestión de Impulsivos
+              </button>
             </nav>
           </div>
 
           <div className="p-6">
             {activeTab === "helados" ? (
               <HeladeriaManager helados={helados} setHelados={setHelados} />
-            ) : (
+            ) : activeTab === "insumos" ? (
               <InsumosManager insumos={insumos} setInsumos={setInsumos} />
+            ) : (
+              <ImpulsivosManager />
             )}
           </div>
         </div>
