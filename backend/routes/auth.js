@@ -7,8 +7,8 @@ const router = express.Router()
 // Usuario admin por defecto (en producción esto debería estar en una base de datos)
 const adminUser = {
   id: 1,
-  username: "Heladeria",
-  password: "123", // Sin encriptar para probar
+  username: "admin",
+  password: "admin", // Sin encriptar para probar
   role: "admin",
 }
 
