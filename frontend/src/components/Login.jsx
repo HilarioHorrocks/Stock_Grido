@@ -5,7 +5,7 @@ import { IceCream, User, Lock, AlertCircle } from "lucide-react"
 import { authAPI } from "../services/api"
 
 const Login = ({ onLogin }) => {
-  const [credentials, setCredentials] = useState({ username: "", password: "" })
+  const [credentials, setCredentials] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -47,19 +47,19 @@ const Login = ({ onLogin }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Usuario
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
-                id="username"
-                name="username"
-                type="text"
+                id="email"
+                name="email"
+                type="email"
                 required
                 className="input-field pl-10"
-                placeholder="Ingresa tu usuario"
-                value={credentials.username}
+                placeholder="Ingresa tu email"
+                value={credentials.email}
                 onChange={handleChange}
               />
             </div>
@@ -105,10 +105,10 @@ const Login = ({ onLogin }) => {
             <strong>Credenciales de prueba:</strong>
           </p>
           <p className="text-sm text-gray-600 text-center">
-            Usuario: <code className="bg-gray-200 px-1 rounded">admin</code>
+            Email: <code className="bg-gray-200 px-1 rounded">admin@heladeria.com</code>
           </p>
           <p className="text-sm text-gray-600 text-center">
-            Contraseña: <code className="bg-gray-200 px-1 rounded">admin123</code>
+            Contraseña: <code className="bg-gray-200 px-1 rounded">12345678</code>
           </p>
         </div>
       </div>
