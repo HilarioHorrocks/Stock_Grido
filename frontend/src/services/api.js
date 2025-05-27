@@ -244,6 +244,7 @@ export const insumosAPI = {
   delete: async (id) => {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData?.user?.id;
+    console.log("user_id insertado:", userId);
 
     const { data, error } = await supabase
       .from('insumos')
