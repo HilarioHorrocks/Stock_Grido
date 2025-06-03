@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { IceCream, Package, LogOut, AlertTriangle, TrendingUp, Candy } from "lucide-react"
+import { IceCream, Package, LogOut, AlertTriangle, TrendingUp, Candy, ShoppingBag } from "lucide-react"
 import HeladeriaManager from "./HeladeriaManager"
 import InsumosManager from "./InsumosManager"
 import ImpulsivosManager from "./ImpulsivosManager"
+import PedidosManager from "./PedidosManager"
+
 import { heladosAPI, insumosAPI } from "../services/api"
 
 const Dashboard = ({ user, onLogout }) => {
@@ -207,6 +209,18 @@ const Dashboard = ({ user, onLogout }) => {
                 <Candy className="w-5 h-5 inline mr-2" />
                 Gestión de Impulsivos
               </button>
+
+              <button
+                onClick={() => setActiveTab("pedidos")}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "pedidos"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <ShoppingBag className="w-5 h-5 inline mr-2" />
+                Gestión de Pedidos
+              </button>
             </nav>
           </div>
 
@@ -215,8 +229,10 @@ const Dashboard = ({ user, onLogout }) => {
               <HeladeriaManager helados={helados} setHelados={setHelados} />
             ) : activeTab === "insumos" ? (
               <InsumosManager insumos={insumos} setInsumos={setInsumos} />
-            ) : (
+            ) : activeTab === "impulsivos" ? (
               <ImpulsivosManager />
+            ) : (
+              <PedidosManager />
             )}
           </div>
         </div>
