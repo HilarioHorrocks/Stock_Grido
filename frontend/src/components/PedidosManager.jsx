@@ -3,10 +3,23 @@
 import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, Eye, EyeOff, ShoppingBag, Download, FileText } from "lucide-react"
 import { pedidosAPI } from "../services/api"
+import { registrarCambio } from "../services/registroCambio"
 import jsPDF from "jspdf"
 import "jspdf-autotable"
+import ExcelJS from "exceljs"
+import { saveAs } from "file-saver"
 
-const PedidosManager = () => {
+// SVG Logo Grido
+const GridoLogo = () => {
+  return (
+    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="32" cy="32" rx="28" ry="28" fill="#1B4DB1" stroke="#E53935" strokeWidth="4"/>
+      <text x="50%" y="54%" textAnchor="middle" fill="#fff" fontSize="28" fontWeight="bold" fontFamily="Arial Rounded MT Bold, Arial, sans-serif" dy=".3em">G</text>
+    </svg>
+  )
+}
+
+const PedidosManager = ({ user, refreshHistorial }) => {
   // Estados de autenticación
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [password, setPassword] = useState("")
@@ -22,6 +35,25 @@ const PedidosManager = () => {
 
   // Estados del formulario
   const [formData, setFormData] = useState({
+    GrupoProducto: "Helado",
+    Codigo: "",
+    Cantidad: "",
+    Deposito: "",
+    Descripcion: "",
+    Cubicaje: "",
+    Peso: "",
+    impuestoIva: "",
+    precio: "",
+    Disponible: "",
+    maximo: "",
+    minimo: "",
+    multiplo: "",
+    objetivo: "",
+    cumplimiento: "",
+    ObjetivoDisponible: "",
+    restoMesAnterior: "",
+    cuota: "",
+    // ...campos antiguos para compatibilidad...
     cliente_nombre: "",
     cliente_telefono: "",
     cliente_direccion: "",
@@ -128,27 +160,89 @@ const PedidosManager = () => {
     doc.save(`pedido_grido_${pedido.id}.pdf`)
   }
 
+  // Función para exportar pedidos a Excel con las columnas requeridas
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet("Pedidos")
+    // Definir columnas según el modelo proporcionado
+    worksheet.columns = [
+      { header: "GrupoProducto", key: "GrupoProducto", width: 20 },
+      { header: "Codigo", key: "Codigo", width: 15 },
+      { header: "Cantidad", key: "Cantidad", width: 10 },
+      { header: "Deposito", key: "Deposito", width: 15 },
+      { header: "Descripcion", key: "Descripcion", width: 30 },
+      { header: "Cubicaje", key: "Cubicaje", width: 10 },
+      { header: "Peso", key: "Peso", width: 10 },
+      { header: "impuestoIva", key: "impuestoIva", width: 12 },
+      { header: "precio", key: "precio", width: 12 },
+      { header: "Disponible", key: "Disponible", width: 12 },
+      { header: "maximo", key: "maximo", width: 10 },
+      { header: "minimo", key: "minimo", width: 10 },
+      { header: "multiplo", key: "multiplo", width: 10 },
+      { header: "objetivo", key: "objetivo", width: 10 },
+      { header: "cumplimiento", key: "cumplimiento", width: 12 },
+      { header: "ObjetivoDisponible", key: "ObjetivoDisponible", width: 18 },
+      { header: "restoMesAnterior", key: "restoMesAnterior", width: 18 },
+      { header: "cuota", key: "cuota", width: 10 },
+    ]
+    // Mapear los pedidos a las columnas requeridas (ajustar según tus datos reales)
+    pedidos.forEach((pedido) => {
+      worksheet.addRow({
+        GrupoProducto: "Helado", // o el grupo correspondiente
+        Codigo: "-", // si tienes un código de producto
+        Cantidad: pedido.cantidad_total,
+        Deposito: "-", // si tienes un campo de depósito
+        Descripcion: pedido.productos,
+        Cubicaje: "-",
+        Peso: "-",
+        impuestoIva: "-",
+        precio: pedido.precio_total,
+        Disponible: "-",
+        maximo: "-",
+        minimo: "-",
+        multiplo: "-",
+        objetivo: "-",
+        cumplimiento: "-",
+        ObjetivoDisponible: "-",
+        restoMesAnterior: "-",
+        cuota: "-",
+      })
+    })
+    const buffer = await workbook.xlsx.writeBuffer()
+    saveAs(new Blob([buffer]), `pedidos_grido_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
   // Función para guardar/actualizar pedidos usando la API
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError(null)
-
     try {
       if (editingPedido) {
         // Actualizar pedido existente
         const response = await pedidosAPI.update(editingPedido.id, formData)
         setPedidos(pedidos.map((p) => (p.id === editingPedido.id ? response.data.data : p)))
+        await registrarCambio({
+          email: user.email,
+          accion: "Editar",
+          entidad: "Pedido",
+          detalle: `Editó el pedido de ${formData.cliente_nombre}`,
+        })
       } else {
         // Crear nuevo pedido
         const response = await pedidosAPI.create(formData)
         setPedidos([response.data.data, ...pedidos])
+        await registrarCambio({
+          email: user.email,
+          accion: "Crear",
+          entidad: "Pedido",
+          detalle: `Creó el pedido de ${formData.cliente_nombre}`,
+        })
       }
-
-      resetForm()
+      if (refreshHistorial) refreshHistorial()
+      setIsModalOpen(false)
+      setEditingPedido(null)
     } catch (error) {
-      console.error("Error al guardar pedido:", error)
-      setError(`Error al guardar pedido: ${error.message}`)
+      setError(error.response?.data?.message || "Error al guardar pedido")
     } finally {
       setLoading(false)
     }
@@ -157,6 +251,25 @@ const PedidosManager = () => {
   // Resetear formulario
   const resetForm = () => {
     setFormData({
+      GrupoProducto: "Helado",
+      Codigo: "",
+      Cantidad: "",
+      Deposito: "",
+      Descripcion: "",
+      Cubicaje: "",
+      Peso: "",
+      impuestoIva: "",
+      precio: "",
+      Disponible: "",
+      maximo: "",
+      minimo: "",
+      multiplo: "",
+      objetivo: "",
+      cumplimiento: "",
+      ObjetivoDisponible: "",
+      restoMesAnterior: "",
+      cuota: "",
+      // ...campos antiguos para compatibilidad...
       cliente_nombre: "",
       cliente_telefono: "",
       cliente_direccion: "",
@@ -175,6 +288,24 @@ const PedidosManager = () => {
   const handleEdit = (pedido) => {
     setEditingPedido(pedido)
     setFormData({
+      GrupoProducto: "Helado",
+      Codigo: pedido.codigo || "",
+      Cantidad: pedido.cantidad_total.toString(),
+      Deposito: "-",
+      Descripcion: pedido.productos,
+      Cubicaje: "-",
+      Peso: "-",
+      impuestoIva: "-",
+      precio: pedido.precio_total.toString(),
+      Disponible: "-",
+      maximo: "-",
+      minimo: "-",
+      multiplo: "-",
+      objetivo: "-",
+      cumplimiento: "-",
+      ObjetivoDisponible: "-",
+      restoMesAnterior: "-",
+      cuota: "-",
       cliente_nombre: pedido.cliente_nombre,
       cliente_telefono: pedido.cliente_telefono,
       cliente_direccion: pedido.cliente_direccion || "",
@@ -194,9 +325,15 @@ const PedidosManager = () => {
       try {
         await pedidosAPI.delete(id)
         setPedidos(pedidos.filter((p) => p.id !== id))
+        await registrarCambio({
+          email: user.email,
+          accion: "Eliminar",
+          entidad: "Pedido",
+          detalle: `Eliminó el pedido con id: ${id}`,
+        })
+        if (refreshHistorial) refreshHistorial()
       } catch (error) {
-        console.error("Error al eliminar pedido:", error)
-        setError(`Error al eliminar pedido: ${error.message}`)
+        setError(error.response?.data?.message || "Error al eliminar pedido")
       }
     }
   }
@@ -227,41 +364,45 @@ const PedidosManager = () => {
   // Pantalla de login
   if (!isAuthenticated) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-            <div className="text-center mb-6">
-              <ShoppingBag className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Pedidos a Grido</h2>
-              <p className="text-gray-600">Ingresa la contraseña para acceder</p>
-            </div>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    className="w-full p-2 border border-gray-300 rounded pr-10"
-                    placeholder="Ingresa la contraseña"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-blue-200 to-yellow-100">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border-2 border-blue-200">
+          <div className="text-center mb-6">
+            {/* Logo Grido */}
+            <div className="flex justify-center mb-4">
+              {/* Si tienes un logo SVG, reemplaza el div de abajo */}
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-yellow-400 flex items-center justify-center shadow-lg">
+                <span className="text-3xl font-extrabold text-white drop-shadow">G</span>
               </div>
-              {loginError && <p className="text-sm text-red-600">{loginError}</p>}
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-                Acceder
-              </button>
-            </form>
+            </div>
+            <h2 className="text-3xl font-extrabold text-blue-700">Pedidos a Grido</h2>
+            <p className="text-blue-500">Ingresa la contraseña para acceder</p>
           </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-blue-700 mb-1">Contraseña</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  className="w-full p-2 border border-blue-300 rounded pr-10 focus:ring-2 focus:ring-blue-400"
+                  placeholder="Ingresa la contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4 text-blue-400" /> : <Eye className="h-4 w-4 text-blue-400" />}
+                </button>
+              </div>
+            </div>
+            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+            <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-yellow-400 text-white py-2 px-4 rounded-lg font-bold shadow hover:from-blue-700 hover:to-yellow-500 transition-colors">
+              Acceder
+            </button>
+          </form>
         </div>
       </div>
     )
@@ -269,107 +410,74 @@ const PedidosManager = () => {
 
   // Pantalla principal de gestión
   return (
-    <div className="space-y-6">
-      {/* Mensaje de error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
-          <div className="flex justify-between items-center">
-            <p>{error}</p>
-            <button onClick={handleCloseError} className="text-red-600 hover:text-red-800 text-xl">
-              ×
-            </button>
-          </div>
+    <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-blue-100">
+      <div className="flex items-center mb-8 space-x-4">
+        <div className="backdrop-blur-md bg-white/60 rounded-full p-2 border-4 border-blue-200 shadow-lg">
+          <GridoLogo />
         </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Pedidos a Grido</h2>
-          <p className="text-gray-600">Gestiona los pedidos para reabastecer tu heladería</p>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={exportToPDF}
-            className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 flex items-center space-x-2"
-          >
-            <Download className="w-5 h-5" />
-            <span>Exportar PDF</span>
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Nuevo Pedido</span>
-          </button>
-          <button
-            onClick={() => setIsAuthenticated(false)}
-            className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300"
-          >
-            Cerrar Sesión
-          </button>
-        </div>
+        <h2 className="text-2xl font-extrabold text-blue-800 drop-shadow tracking-wide">Gestión de Pedidos</h2>
       </div>
-
-      {/* Tabla de Pedidos */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-          <thead className="bg-gray-50">
+      <div className="flex justify-end mb-4 gap-2">
+        <button
+          onClick={exportToPDF}
+          className="bg-gradient-to-r from-blue-500 to-red-400 hover:from-red-400 hover:to-blue-500 text-white font-bold py-2 px-6 rounded-full border-2 border-blue-200 hover:border-red-400 shadow-lg transition-all backdrop-blur-md"
+        >
+          Exportar PDF
+        </button>
+        <button
+          onClick={exportToExcel}
+          className="bg-gradient-to-r from-blue-500 to-red-400 hover:from-red-400 hover:to-blue-500 text-white font-bold py-2 px-6 rounded-full border-2 border-blue-200 hover:border-red-400 shadow-lg transition-all backdrop-blur-md"
+        >
+          Exportar Excel
+        </button>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-gradient-to-r from-blue-500 to-red-400 hover:from-red-400 hover:to-blue-500 text-white font-bold py-2 px-6 rounded-full border-2 border-blue-200 hover:border-red-400 shadow-lg transition-all backdrop-blur-md"
+        >
+          Nuevo Pedido
+        </button>
+      </div>
+      <div className="overflow-x-auto rounded-2xl shadow-lg">
+        <table className="min-w-full bg-white border border-blue-100 rounded-2xl">
+          <thead className="bg-blue-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Proveedor
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contacto
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Productos
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Fecha Entrega
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Proveedor</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Contacto</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Productos</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Total</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Estado</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Fecha Entrega</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {pedidos.map((pedido) => (
-              <tr key={pedido.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900">{pedido.cliente_nombre}</div>
-                  {pedido.cliente_direccion && <div className="text-xs text-gray-500">{pedido.cliente_direccion}</div>}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{pedido.cliente_telefono}</td>
+          <tbody className="divide-y divide-blue-50">
+            {pedidos.map((pedido, idx) => (
+              <tr key={pedido.id} className={idx % 2 === 0 ? "bg-blue-50/40" : "bg-white"}>
+                <td className="px-6 py-4 font-bold text-blue-900">{pedido.cliente_nombre}</td>
+                <td className="px-6 py-4 text-blue-700">{pedido.cliente_telefono}</td>
+                <td className="px-6 py-4 text-blue-700">{pedido.productos}</td>
+                <td className="px-6 py-4 text-blue-900 font-semibold">${pedido.precio_total}</td>
                 <td className="px-6 py-4">
-                  <div className="max-w-xs truncate text-gray-500" title={pedido.productos}>
-                    {pedido.productos}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">${pedido.precio_total}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getEstadoColor(pedido.estado)}`}>
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full border-2 border-blue-200 ${getEstadoColor(pedido.estado)}`}>
                     {pedido.estado.replace("_", " ").toUpperCase()}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                <td className="px-6 py-4 text-blue-700">
                   {pedido.fecha_entrega ? new Date(pedido.fecha_entrega).toLocaleDateString() : "No definida"}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                <td className="px-6 py-4 text-sm font-medium space-x-2">
                   <button
                     onClick={() => exportSinglePedido(pedido)}
-                    className="text-green-600 hover:text-green-900"
+                    className="text-blue-500 hover:text-red-400 font-bold"
                     title="Exportar este pedido"
                   >
-                    <FileText className="w-4 h-4" />
+                    Exportar
                   </button>
-                  <button onClick={() => handleEdit(pedido)} className="text-blue-600 hover:text-blue-900">
-                    <Edit className="w-4 h-4" />
+                  <button onClick={() => handleEdit(pedido)} className="text-blue-500 hover:text-red-400 font-bold">
+                    Editar
                   </button>
-                  <button onClick={() => handleDelete(pedido.id)} className="text-red-600 hover:text-red-900">
-                    <Trash2 className="w-4 h-4" />
+                  <button onClick={() => handleDelete(pedido.id)} className="text-red-500 hover:text-blue-700 font-bold">
+                    Eliminar
                   </button>
                 </td>
               </tr>
@@ -377,151 +485,223 @@ const PedidosManager = () => {
           </tbody>
         </table>
       </div>
-
       {pedidos.length === 0 && !loading && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No hay pedidos registrados. ¡Crea el primer pedido a Grido!</p>
+          <p className="text-blue-400 font-semibold">No hay pedidos registrados. ¡Crea el primer pedido a Grido!</p>
         </div>
       )}
 
       {loading && (
         <div className="text-center py-12">
-          <p className="text-gray-500">Cargando pedidos...</p>
+          <p className="text-blue-400 font-semibold">Cargando pedidos...</p>
         </div>
       )}
 
       {/* Modal de Crear/Editar Pedido */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingPedido ? "Editar Pedido a Grido" : "Nuevo Pedido a Grido"}
-            </h3>
+        <div className="fixed inset-0 bg-blue-900 bg-opacity-30 flex items-center justify-center p-4 z-50">
+          <div className="bg-white/90 rounded-2xl max-w-2xl w-full p-8 border-4 border-blue-200 shadow-2xl backdrop-blur-md">
+            <div className="flex items-center mb-4">
+              <div className="mr-3"><GridoLogo /></div>
+              <h3 className="text-xl font-bold text-blue-700">{editingPedido ? "Editar Pedido" : "Nuevo Pedido"}</h3>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grupo Producto</label>
                   <input
                     type="text"
                     required
                     className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="Grido Central"
-                    value={formData.cliente_nombre}
-                    onChange={(e) => setFormData({ ...formData, cliente_nombre: e.target.value })}
+                    placeholder="Ej: Helado"
+                    value={formData.GrupoProducto}
+                    onChange={e => setFormData({ ...formData, GrupoProducto: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contacto</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
                   <input
-                    type="tel"
-                    required
+                    type="text"
                     className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="Teléfono del proveedor"
-                    value={formData.cliente_telefono}
-                    onChange={(e) => setFormData({ ...formData, cliente_telefono: e.target.value })}
+                    value={formData.Codigo}
+                    onChange={e => setFormData({ ...formData, Codigo: e.target.value })}
                   />
                 </div>
               </div>
-
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.Cantidad}
+                    onChange={e => setFormData({ ...formData, Cantidad: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Depósito</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.Deposito}
+                    onChange={e => setFormData({ ...formData, Deposito: e.target.value })}
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección del Proveedor</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full p-2 border border-gray-300 rounded"
+                  value={formData.Descripcion}
+                  onChange={e => setFormData({ ...formData, Descripcion: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cubicaje</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.Cubicaje}
+                    onChange={e => setFormData({ ...formData, Cubicaje: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Peso</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.Peso}
+                    onChange={e => setFormData({ ...formData, Peso: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Impuesto IVA</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.impuestoIva}
+                    onChange={e => setFormData({ ...formData, impuestoIva: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.precio}
+                    onChange={e => setFormData({ ...formData, precio: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Disponible</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.Disponible}
+                    onChange={e => setFormData({ ...formData, Disponible: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Máximo</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.maximo}
+                    onChange={e => setFormData({ ...formData, maximo: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mínimo</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.minimo}
+                    onChange={e => setFormData({ ...formData, minimo: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Múltiplo</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.multiplo}
+                    onChange={e => setFormData({ ...formData, multiplo: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Objetivo</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.objetivo}
+                    onChange={e => setFormData({ ...formData, objetivo: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cumplimiento</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.cumplimiento}
+                    onChange={e => setFormData({ ...formData, cumplimiento: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Objetivo Disponible</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.ObjetivoDisponible}
+                    onChange={e => setFormData({ ...formData, ObjetivoDisponible: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Resto Mes Anterior</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded"
+                    value={formData.restoMesAnterior}
+                    onChange={e => setFormData({ ...formData, restoMesAnterior: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cuota</label>
                 <input
                   type="text"
                   className="w-full p-2 border border-gray-300 rounded"
-                  placeholder="Dirección del proveedor (opcional)"
-                  value={formData.cliente_direccion}
-                  onChange={(e) => setFormData({ ...formData, cliente_direccion: e.target.value })}
+                  value={formData.cuota}
+                  onChange={e => setFormData({ ...formData, cuota: e.target.value })}
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Productos a Solicitar</label>
-                <textarea
-                  required
-                  rows={3}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  placeholder="Ej: 10x Helado Chocolate 1kg, 5x Helado Vainilla 1kg, 3x Torta Helada..."
-                  value={formData.productos}
-                  onChange={(e) => setFormData({ ...formData, productos: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad Total</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="0"
-                    value={formData.cantidad_total}
-                    onChange={(e) => setFormData({ ...formData, cantidad_total: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Total ($)</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    className="w-full p-2 border border-gray-300 rounded"
-                    placeholder="0.00"
-                    value={formData.precio_total}
-                    onChange={(e) => setFormData({ ...formData, precio_total: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select
-                    required
-                    className="w-full p-2 border border-gray-300 rounded"
-                    value={formData.estado}
-                    onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                  >
-                    {estados.map((estado) => (
-                      <option key={estado} value={estado}>
-                        {estado.replace("_", " ").toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Entrega Estimada</label>
-                <input
-                  type="datetime-local"
-                  className="w-full p-2 border border-gray-300 rounded"
-                  value={formData.fecha_entrega}
-                  onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-                <textarea
-                  rows={2}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  placeholder="Notas adicionales sobre el pedido..."
-                  value={formData.observaciones}
-                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                />
-              </div>
-
+              {/* ...campos antiguos si quieres mantenerlos... */}
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300"
+                  className="flex-1 bg-blue-100 text-blue-900 py-2 px-4 rounded-lg hover:bg-blue-200 font-bold shadow"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="flex-1 bg-blue-700 text-white py-2 px-4 rounded-lg hover:bg-red-400 font-bold shadow disabled:opacity-50"
                 >
                   {loading ? "Guardando..." : editingPedido ? "Actualizar" : "Crear Pedido"}
                 </button>

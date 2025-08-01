@@ -48,13 +48,10 @@ export const authAPI = {
 // ==========================
 export const heladosAPI = {
   getAll: async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
+    // Eliminar filtro por user_id para mostrar todos los helados a todos los empleados
     const { data, error } = await supabase
       .from("helados")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -91,9 +88,6 @@ export const heladosAPI = {
   },
 
   update: async (id, heladoData) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("helados")
       .update({
@@ -104,7 +98,6 @@ export const heladosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -116,10 +109,7 @@ export const heladosAPI = {
   },
 
   delete: async (id) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
-    const { data, error } = await supabase.from("helados").delete().eq("id", id).eq("user_id", userId).select()
+    const { data, error } = await supabase.from("helados").delete().eq("id", id).select()
 
     if (error) {
       console.error("Error al eliminar helado:", error)
@@ -130,9 +120,6 @@ export const heladosAPI = {
   },
 
   updateStock: async (id, stock) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("helados")
       .update({
@@ -140,7 +127,6 @@ export const heladosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -157,13 +143,10 @@ export const heladosAPI = {
 // ==========================
 export const insumosAPI = {
   getAll: async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
+    // Eliminar filtro por user_id para mostrar todos los insumos a todos los empleados
     const { data, error } = await supabase
       .from("insumos")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -216,9 +199,6 @@ export const insumosAPI = {
   },
 
   update: async (id, insumoData) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("insumos")
       .update({
@@ -231,7 +211,6 @@ export const insumosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -243,10 +222,7 @@ export const insumosAPI = {
   },
 
   delete: async (id) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
-    const { data, error } = await supabase.from("insumos").delete().eq("id", id).eq("user_id", userId).select()
+    const { data, error } = await supabase.from("insumos").delete().eq("id", id).select()
 
     if (error) {
       console.error("Error al eliminar insumo:", error)
@@ -257,9 +233,6 @@ export const insumosAPI = {
   },
 
   updateStock: async (id, stock) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("insumos")
       .update({
@@ -267,7 +240,6 @@ export const insumosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -284,13 +256,10 @@ export const insumosAPI = {
 // ==========================
 export const impulsivosAPI = {
   getAll: async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
+    // Eliminar filtro por user_id para mostrar todos los impulsivos a todos los empleados
     const { data, error } = await supabase
       .from("impulsivos")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -327,9 +296,6 @@ export const impulsivosAPI = {
   },
 
   update: async (id, impulsivoData) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("impulsivos")
       .update({
@@ -340,7 +306,6 @@ export const impulsivosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -352,10 +317,7 @@ export const impulsivosAPI = {
   },
 
   delete: async (id) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
-    const { data, error } = await supabase.from("impulsivos").delete().eq("id", id).eq("user_id", userId).select()
+    const { data, error } = await supabase.from("impulsivos").delete().eq("id", id).select()
 
     if (error) {
       console.error("Error al eliminar impulsivo:", error)
@@ -366,9 +328,6 @@ export const impulsivosAPI = {
   },
 
   updateStock: async (id, stock) => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
     const { data, error } = await supabase
       .from("impulsivos")
       .update({
@@ -376,7 +335,6 @@ export const impulsivosAPI = {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("user_id", userId)
       .select()
 
     if (error) {
@@ -393,13 +351,10 @@ export const impulsivosAPI = {
 // ==========================
 export const pedidosAPI = {
   getAll: async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id
-
+    // Eliminar filtro por user_id para mostrar todos los pedidos a todos los empleados (si corresponde)
     const { data, error } = await supabase
       .from("pedidos")
       .select("*")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
     if (error) {
