@@ -99,7 +99,9 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
             <div>
               <h1 className="text-3xl font-extrabold text-white drop-shadow-lg tracking-wide">Grido Stock</h1>
-              <p className="text-base text-blue-100 font-semibold">Bienvenido, {user?.username}</p>
+              <p className="text-base text-blue-100 font-semibold">
+                Bienvenido {user?.email ? user.email.split("@")[0].replace(/(^[a-z])|([_\-.][a-z])/g, s => s.replace(/[_\-.]/, '').charAt(0).toUpperCase() + s.slice(1)) : ''}
+              </p>
             </div>
           </div>
           <button
